@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="t1-hero">
+    <h2>Welcome to T1 — Topic: {{ the_topic|title }}</h2>
+    <p>Total available: <strong>{{ number_of_donuts }}</strong></p>
+</section>
+
+<section class="t1-grid">
+    <h3>🍩 Donut Flavours</h3>
+    <div class="cards">
+        {% for flavour in donut_data.flavours %}
+        {% set i = loop.index0 %}
+        <article class="card {% if flavour|lower == 'chocolate' %}highlight{% endif %}">
+            <header class="card-header">
+                <h4>{{ loop.index }}. {{ flavour }}</h4>
+            </header>
+
+            {% if images|length > i %}
+            <img class="card-img" src="{{ url_for('static', filename='images/' ~ images[i]) }}"
+                alt="{{ flavour }} donut" />
+            {% else %}
+            <img class="card-img" src="{{ url_for('static', filename='images/donut_a.png') }}"
+                alt="{{ flavour }} donut" />
+            {% endif %}
+
+            <div class="card-body">
+                {% if number_of_donuts > 20 %}
+                <p class="badge">In stock</p>
+                {% else %}
+                <p class="badge low">Limited stock.</p>
+                {% endif %}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="t1-toppings">
+    <h3>Available Toppings </h3>
+    <ul class="tags">
+        {% for top in donut_data.toppings %}
+        <li class="tag">{{ top }}</li>
+        {% endfor %}
+    </ul>
+</section>
+
+<section class="t1-icecream">
+    <h3>Ice Cream </h3>
+    <ol>
+        {% for ice in icecream_flavors %}
+        <li>{{ ice }}</li>
+        {% endfor %}
+    </ol>
+</section>
+
+{% endblock %}

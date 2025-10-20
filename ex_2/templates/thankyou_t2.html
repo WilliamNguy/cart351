@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="thank-collect">
+    <h3>Thank you for submitting your message!</h3>
+    <div class="masked-card">
+        <p class="masked-output">{{ masked }}</p>
+    </div>
+
+    <a href="{{ url_for('t2') }}" class="back-link">← Back to form</a>
+</section>
+{% endblock %}
