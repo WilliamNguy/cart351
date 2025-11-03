@@ -1,0 +1,6 @@
+{"alias": "anon", "donut": "donut_b.png", "color": "#ff99aa", "energy": 23}
+{"alias": "Will", "donut": "donut_b.png", "color": "#ff99aa", "energy": 23}
+{"alias": "anon", "donut": "donut_c.png", "color": "#05038c", "energy": 100}
+{"alias": "anon", "donut": "donut_a.png", "color": "#ff99aa", "energy": 40}
+{"alias": "anon", "donut": "donut_d.png", "color": "#841023", "energy": 40}
+{"alias": "anon", "donut": "donut_f.png", "color": "#cc0022", "energy": 40}

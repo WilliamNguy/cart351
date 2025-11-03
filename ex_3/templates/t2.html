@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Task 2 — Donut Maker{% endblock %}
+
+{% block content %}
+<h3>Task 2: Customize your donut!</h3>
+
+<label>Alias
+    <input id="alias" type="text" placeholder="Your name">
+</label>
+
+<div style="margin:12px 0;">
+    <strong>Pick your donut:</strong>
+    <div id="donutRow" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+        <button type="button" class="donutBtn" data-donut="donut_a.png">
+            <img src="{{ url_for('static', filename='images/donut_a.png') }}" alt="donut a">
+        </button>
+        <button type="button" class="donutBtn" data-donut="donut_b.png">
+            <img src="{{ url_for('static', filename='images/donut_b.png') }}" alt="donut b">
+        </button>
+        <button type="button" class="donutBtn" data-donut="donut_c.png">
+            <img src="{{ url_for('static', filename='images/donut_c.png') }}" alt="donut c">
+        </button>
+        <button type="button" class="donutBtn" data-donut="donut_d.png">
+            <img src="{{ url_for('static', filename='images/donut_d.png') }}" alt="donut d">
+        </button>
+        <button type="button" class="donutBtn" data-donut="donut_e.png">
+            <img src="{{ url_for('static', filename='images/donut_e.png') }}" alt="donut e">
+        </button>
+        <button type="button" class="donutBtn" data-donut="donut_f.png">
+            <img src="{{ url_for('static', filename='images/donut_f.png') }}" alt="donut f">
+        </button>
+    </div>
+
+    <div id="previewWrap" style="margin-top:12px;display:flex;align-items:center;gap:12px;">
+        <strong>Preview:</strong>
+        <img id="preview" src="{{ url_for('static', filename='images/donut_a.png') }}" alt="preview"
+            style="width:80px;height:80px;object-fit:contain;">
+        <span id="chosenName" style="opacity:0.8;">donut_a.png</span>
+    </div>
+</div>
+
+<label>Frosting Color
+    <input id="color" type="color" value="#ff99aa">
+</label>
+
+<label style="display:block;margin-top:10px;">Sugar meter
+    <input id="energy" type="range" min="0" max="100" value="40">
+</label>
+
+<button id="sendBtn" style="margin-top:12px;">Save to Server</button>
+<div id="result" style="margin-top:15px;font-weight:bold;"></div>
+{% endblock %}
+
+{% block scriptblock %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        console.log("✅ donut t2 script loaded");
+
+        const aliasEl = document.getElementById("alias");
+        const colorEl = document.getElementById("color");
+        const energyEl = document.getElementById("energy");
+        const resultEl = document.getElementById("result");
+        const sendBtn = document.getElementById("sendBtn");
+
+        const donutRow = document.getElementById("donutRow");
+        const donutBtns = Array.from(document.querySelectorAll(".donutBtn"));
+        const preview = document.getElementById("preview");
+        const chosenName = document.getElementById("chosenName");
+
+        let selectedDonut = donutBtns[0]?.dataset.donut || "donut_a.png";
+
+        // click to change preview
+        donutRow.addEventListener("click", (e) => {
+            const btn = e.target.closest(".donutBtn");
+            if (!btn) return;
+            selectedDonut = btn.dataset.donut;
+            const img = btn.querySelector("img");
+            if (img) preview.src = img.src;
+            chosenName.textContent = selectedDonut;
+            console.log("🍩 Selected:", selectedDonut);
+        });
+
+        // send to Flask
+        sendBtn.addEventListener("click", async () => {
+            const payload = {
+                alias: (aliasEl.value || "").trim() || "anon",
+                donut: selectedDonut,
+                color: colorEl.value,
+                energy: Number(energyEl.value)
+            };
+
+            try {
+                const res = await fetch("/postDataFetch", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                resultEl.textContent = data.msg || "No response.";
+                resultEl.style.color = data.ok ? "green" : "red";
+            } catch (err) {
+                console.error(err);
+                resultEl.textContent = "Network or server error.";
+                resultEl.style.color = "red";
+            }
+        });
+    });
+</script>
+{% endblock %}
