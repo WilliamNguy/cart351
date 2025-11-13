@@ -1,0 +1,46 @@
+<!-- child of base -->
+{% extends "base.html" %}
+
+{% block content %}
+<p>simple reaction game: wait for green, then click fast.</p>
+
+<section class="panel">
+    <h2>how it works</h2>
+    <ol>
+        <li>type your name</li>
+        <li>press <b>start</b> and wait</li>
+        <li>when it turns <b>green</b>, click as fast as you can</li>
+    </ol>
+</section>
+
+<section class="panel grid">
+    <div>
+        <h2>play area</h2>
+
+        <form id="nameForm">
+            <label for="playerName">name</label>
+            <input id="playerName" maxlength="24">
+        </form>
+
+        <div id="gameArea" class="game idle" role="button" aria-label="game area">
+            <div class="game-text">
+                <div id="stateLine">press <b>start</b> to begin</div>
+                <div id="timeLine" class="time"></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="startBtn">start</button>
+            <small id="msg" class="msg" aria-live="polite"></small>
+        </div>
+    </div>
+
+    <div>
+        <h2>leaderboard (top 10)</h2>
+        <ol id="leaderboard" class="leaderboard"></ol>
+
+        <h3>latest scores</h3>
+        <ul id="latest" class="latest"></ul>
+    </div>
+</section>
+{% endblock %}
