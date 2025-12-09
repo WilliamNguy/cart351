@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Nostalgia Era: 31–50 (Starfield)</title>
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: black;
+        }
+
+        #starfieldCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #hud {
+            position: fixed;
+            top: 15px;
+            left: 20px;
+            color: white;
+            font-family: Arial, sans-serif;
+            z-index: 5;
+            text-shadow: 0 0 5px black;
+        }
+
+        #backBtn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 18px;
+            background: magenta;
+            color: black;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            text-decoration: none;
+            border-radius: 8px;
+            z-index: 9999;
+            box-shadow: 0 0 10px magenta;
+            transition: 0.2s;
+        }
+
+        #backBtn:hover {
+            background: #ff80ff;
+            box-shadow: 0 0 14px #ff80ff;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="hud">
+        <div><b>Nostalgia Era: 31–50</b></div>
+        <div>Drag the characters • Click to hear</div>
+    </div>
+
+    <!-- 🎵 AUDIO -->
+    <audio id="eraAudio" src="/static/nos3.mp3" loop preload="auto"></audio>
+
+    <audio id="click1" src="/static/click.mp3" preload="auto"></audio>
+    <audio id="click2" src="/static/bump.mp3" preload="auto"></audio>
+    <audio id="click3" src="/static/explosion.mp3" preload="auto"></audio>
+    <a href="/" id="backBtn">← Home</a>
+    <canvas id="starfieldCanvas"></canvas>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+    <script>
+        let sfRenderer, sfScene, sfCamera, sfStars, sfGeometry;
+
+        // raycasting for dragging
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        let dragSprite = null;
+        let dragDistance = 0;
+
+        // sprites
+        let sfSpaceman = null;
+        let sfAstro = null;
+        let sfPiece = null;
+        let sfBlue = null;
+        let sfPurple = null;
+
+        // bounce
+        let sfSpacemanNDC = new THREE.Vector2(0, 0);
+        let sfAstroNDC = new THREE.Vector2(0, 0);
+
+        // movement 
+        let sfSpacemanVel = new THREE.Vector2(0.002, 0.0015);
+        let sfAstroVel = new THREE.Vector2(-0.0012, -0.0008);
+
+        // audio
+        let bgAudio;
+        let clickSounds = [];
+
+        function initStarfield() {
+            const canvas = document.getElementById("starfieldCanvas");
+
+            // renderer
+            sfRenderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+            sfRenderer.setPixelRatio(window.devicePixelRatio);
+
+
+            sfScene = new THREE.Scene();
+            sfCamera = new THREE.PerspectiveCamera(
+                75,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                1000
+            );
+            sfCamera.position.z = 5;
+            resizeRenderer();
+
+            // ---- audio ----
+            bgAudio = document.getElementById("eraAudio");
+
+
+            document.body.addEventListener("click", () => {
+                if (bgAudio.paused) bgAudio.play().catch(() => { });
+            }, { once: true });
+
+            clickSounds = [
+                document.getElementById("click1"),
+                document.getElementById("click2"),
+                document.getElementById("click3")
+            ];
+
+            // ---- starfield ----
+            const starCount = 1500;
+            const pos = [];
+            for (let i = 0; i < starCount; i++) {
+                pos.push(
+                    (Math.random() - 0.5) * 200,
+                    (Math.random() - 0.5) * 200,
+                    -Math.random() * 600
+                );
+            }
+
+            sfGeometry = new THREE.BufferGeometry();
+            sfGeometry.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+
+            const starMat = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 1.5,
+                transparent: true
+            });
+
+            sfStars = new THREE.Points(sfGeometry, starMat);
+            sfScene.add(sfStars);
+
+            const loader = new THREE.TextureLoader();
+
+            // ---- spaceman ----
+            loader.load("/static/spaceman.png", tex => {
+                tex.minFilter = THREE.LinearFilter;
+                const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+                sfSpaceman = new THREE.Sprite(mat);
+
+                sfSpaceman.scale.set(0.1, 0.1, 1);
+
+                sfSpacemanNDC.set(Math.random() * 2 - 1, Math.random() * 2 - 1);
+                sfUpdateSprite(sfSpaceman, sfSpacemanNDC);
+
+                sfScene.add(sfSpaceman);
+            });
+
+            // ---- astro ----
+            const astroVid = document.createElement("video");
+            astroVid.src = "/static/astro.webm";
+            astroVid.loop = true;
+            astroVid.muted = true;
+            astroVid.play();
+
+            const astroTex = new THREE.VideoTexture(astroVid);
+            const astroMat = new THREE.SpriteMaterial({ map: astroTex, transparent: true });
+
+            sfAstro = new THREE.Sprite(astroMat);
+            sfAstro.scale.set(0.07, 0.07, 1);
+
+            sfAstroNDC.set(Math.random() * 2 - 1, Math.random() * 2 - 1);
+            sfUpdateSprite(sfAstro, sfAstroNDC);
+
+            sfScene.add(sfAstro);
+
+            // ---- piece ----
+            const pieceVid = document.createElement("video");
+            pieceVid.src = "/static/piece.webm";
+            pieceVid.loop = true;
+            pieceVid.muted = true;
+            pieceVid.play();
+
+            const pieceTex = new THREE.VideoTexture(pieceVid);
+            const pieceMat = new THREE.SpriteMaterial({ map: pieceTex, transparent: true });
+
+            sfPiece = new THREE.Sprite(pieceMat);
+            sfPiece.scale.set(2, 2, 1);
+            sfPiece.position.set(-3, -1.5, 0);
+            sfScene.add(sfPiece);
+
+            // ---- blue ----
+            loader.load("/static/blue.png", tex => {
+                tex.minFilter = THREE.LinearFilter;
+                const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+                sfBlue = new THREE.Sprite(mat);
+                sfBlue.scale.set(7, 7, 1);
+                sfBlue.position.set(5, -3, 0);
+                sfScene.add(sfBlue);
+            });
+
+            // ---- purple ----
+            loader.load("/static/purple.png", tex => {
+                tex.minFilter = THREE.LinearFilter;
+                const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+                sfPurple = new THREE.Sprite(mat);
+                sfPurple.scale.set(6, 6, 1);
+                sfPurple.position.set(-6, 3.5, 0);
+                sfScene.add(sfPurple);
+            });
+
+
+            window.addEventListener("resize", resizeRenderer);
+            window.addEventListener("mousedown", onMouseDown);
+            window.addEventListener("mousemove", onMouseMove);
+            window.addEventListener("mouseup", onMouseUp);
+
+            animateStarfield();
+        }
+
+        // ---- animation ----
+        function animateStarfield() {
+            requestAnimationFrame(animateStarfield);
+
+            // move stars
+            const arr = sfGeometry.attributes.position.array;
+            for (let i = 2; i < arr.length; i += 3) {
+                arr[i] += 0.4;
+                if (arr[i] > 5) {
+                    arr[i] = -600;
+                    arr[i - 2] = (Math.random() - 0.5) * 200;
+                    arr[i - 1] = (Math.random() - 0.5) * 200;
+                }
+            }
+            sfGeometry.attributes.position.needsUpdate = true;
+
+            // bounce spaceman
+            if (sfSpaceman && dragSprite !== sfSpaceman) {
+                sfSpacemanNDC.add(sfSpacemanVel);
+                if (sfSpacemanNDC.x > 1 || sfSpacemanNDC.x < -1) sfSpacemanVel.x *= -1;
+                if (sfSpacemanNDC.y > 1 || sfSpacemanNDC.y < -1) sfSpacemanVel.y *= -1;
+                sfUpdateSprite(sfSpaceman, sfSpacemanNDC);
+            }
+
+            // bounce astro
+            if (sfAstro && dragSprite !== sfAstro) {
+                sfAstroNDC.add(sfAstroVel);
+                if (sfAstroNDC.x > 1 || sfAstroNDC.x < -1) sfAstroVel.x *= -1;
+                if (sfAstroNDC.y > 1 || sfAstroNDC.y < -1) sfAstroVel.y *= -1;
+                sfUpdateSprite(sfAstro, sfAstroNDC);
+            }
+
+            sfRenderer.render(sfScene, sfCamera);
+        }
+
+        // ---- position ----
+        function sfUpdateSprite(sprite, ndcVec) {
+            const world = new THREE.Vector3(ndcVec.x, ndcVec.y, 0).unproject(sfCamera);
+            sprite.position.copy(world);
+        }
+
+        function updateMouseFromEvent(event) {
+            const rect = sfRenderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        }
+
+        // ---- audio ----
+        function playRandomClickSound() {
+            const sfx = clickSounds[Math.floor(Math.random() * clickSounds.length)];
+            sfx.currentTime = 0;
+            sfx.play().catch(() => { });
+        }
+
+        // ---- dragging ----
+        function onMouseDown(event) {
+            updateMouseFromEvent(event);
+            raycaster.setFromCamera(mouse, sfCamera);
+
+            const sprites = [sfSpaceman, sfAstro, sfPiece, sfBlue, sfPurple].filter(Boolean);
+            const intersects = raycaster.intersectObjects(sprites, false);
+
+            if (intersects.length > 0) {
+                dragSprite = intersects[0].object;
+                dragDistance = intersects[0].distance;
+                playRandomClickSound(); // sound effect
+            }
+        }
+
+        function onMouseMove(event) {
+            if (!dragSprite) return;
+
+            updateMouseFromEvent(event);
+            raycaster.setFromCamera(mouse, sfCamera);
+
+            const newPos = raycaster.ray.origin.clone()
+                .add(raycaster.ray.direction.clone().multiplyScalar(dragDistance));
+
+            dragSprite.position.copy(newPos);
+
+            // sync 
+            const p = dragSprite.position.clone().project(sfCamera);
+
+            if (dragSprite === sfSpaceman) sfSpacemanNDC.set(p.x, p.y);
+            if (dragSprite === sfAstro) sfAstroNDC.set(p.x, p.y);
+        }
+
+        function onMouseUp() {
+            dragSprite = null;
+        }
+
+        // ---- resize ----
+        function resizeRenderer() {
+            sfRenderer.setPixelRatio(window.devicePixelRatio);
+            sfRenderer.setSize(window.innerWidth, window.innerHeight);
+            sfCamera.aspect = window.innerWidth / window.innerHeight;
+            sfCamera.updateProjectionMatrix();
+        }
+
+        window.addEventListener("load", initStarfield);
+    </script>
+</body>
+
+</html>

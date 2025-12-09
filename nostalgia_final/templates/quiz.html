@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Nostalgia Quiz</title>
+
+    <style>
+        body {
+            background: #111;
+            color: white;
+            font-family: Arial;
+            padding: 40px;
+        }
+
+        .question {
+            margin-bottom: 25px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #444;
+        }
+
+        .question-title {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        button {
+            padding: 12px 22px;
+            background: cyan;
+            color: black;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            border-radius: 10px;
+        }
+
+        button:hover {
+            background: #ff66ff;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Nostalgia Quiz</h1>
+
+    <form action="/submitQuiz" method="POST">
+
+        {% for q in questions %}
+        <div class="question">
+            <p class="question-title"><b>Question {{ loop.index }}:</b> {{ q.text }}</p>
+
+            {% for value, weight, label in q.choices %}
+            <label>
+                <input type="radio" name="q{{ loop.index }}" value="{{ value }}" required>
+                {{ label }}
+            </label><br>
+            {% endfor %}
+        </div>
+        {% endfor %}
+
+        <button type="submit">Submit Quiz</button>
+    </form>
+
+</body>
+
+</html>

@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Nostalgia Era: 0–17 (Maze)</title>
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: black;
+        }
+
+        #mazeCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #hud {
+            position: fixed;
+            top: 15px;
+            left: 20px;
+            color: white;
+            font-family: Arial, sans-serif;
+            z-index: 5;
+            text-shadow: 0 0 5px black;
+        }
+
+        #backBtn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 18px;
+            background: magenta;
+            color: black;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            text-decoration: none;
+            border-radius: 8px;
+            z-index: 9999;
+            box-shadow: 0 0 10px magenta;
+            transition: 0.2s;
+        }
+
+        #backBtn:hover {
+            background: #ff80ff;
+            box-shadow: 0 0 14px #ff80ff;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="hud">
+        <b>Nostalgia Era: 0–17</b><br>
+        Click to take control
+    </div>
+
+    <!-- Background ambient nostalgia loop -->
+    <audio id="eraAudio" src="/static/nos1.mp3" loop preload="auto"></audio>
+
+    <!-- Footsteps loop (only when user moves) -->
+    <audio id="walkAudio" src="/static/walk.mp3" loop preload="auto"></audio>
+
+    <a href="/" id="backBtn">← Home</a>
+
+
+    <canvas id="mazeCanvas"></canvas>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+    <script>
+        let mazeRenderer, mazeScene, mazeCamera, mazeClock;
+        let mazeSize = 10;
+        let cellSize = 4;
+
+        let mazeData;
+
+        // Movement flags
+        let moveForward = false;
+        let moveBackward = false;
+        let moveLeft = false;
+        let moveRight = false;
+
+        // Auto move
+        let autoMove = true;
+
+        // Mouse look
+        let yaw = 0;
+        let pitch = 0;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        let mouseDown = false;
+
+        // Sounds
+        let bgAudioElem;
+        let walkAudioElem;
+        let walking = false;
+
+        function initMaze() {
+            const canvas = document.getElementById("mazeCanvas");
+
+            mazeRenderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+            mazeRenderer.setPixelRatio(window.devicePixelRatio);
+
+            mazeScene = new THREE.Scene();
+            mazeCamera = new THREE.PerspectiveCamera(
+                75, window.innerWidth / window.innerHeight, 0.1, 1000
+            );
+            mazeCamera.position.set(0, 1.6, 0);
+
+            mazeClock = new THREE.Clock();
+
+            // audio
+            bgAudioElem = document.getElementById("eraAudio");
+            walkAudioElem = document.getElementById("walkAudio");
+
+            document.body.addEventListener("click", () => {
+                if (bgAudioElem.paused) {
+                    bgAudioElem.play();
+                }
+                autoMove = false; // takeover
+            }, { once: true });
+
+            // maze generation
+            mazeData = generateMaze(mazeSize, mazeSize);
+            buildMazeGeometry(mazeData.maze);
+
+            resizeRenderer();
+            window.addEventListener("resize", resizeRenderer);
+
+            // Controls
+            window.addEventListener("keydown", onKeyDown);
+            window.addEventListener("keyup", onKeyUp);
+            window.addEventListener("mousedown", onMouseDown);
+            window.addEventListener("mouseup", () => mouseDown = false);
+            window.addEventListener("mousemove", onMouseMove);
+
+            animateMaze();
+        }
+
+        function resizeRenderer() {
+            if (!mazeRenderer || !mazeCamera) return;
+            mazeRenderer.setPixelRatio(window.devicePixelRatio);
+            mazeRenderer.setSize(window.innerWidth, window.innerHeight);
+            mazeCamera.aspect = window.innerWidth / window.innerHeight;
+            mazeCamera.updateProjectionMatrix();
+        }
+
+
+        function generateMaze(width, height) {
+            const maze = [];
+            for (let x = 0; x < width; x++) {
+                maze[x] = [];
+                for (let y = 0; y < height; y++) {
+                    maze[x][y] = { visited: false, walls: [true, true, true, true] };
+                }
+            }
+
+            function carve(x, y) {
+                maze[x][y].visited = true;
+                const dirs = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
+
+                for (let dir of dirs) {
+                    let nx = x, ny = y;
+                    if (dir === 0) ny--;
+                    if (dir === 1) nx++;
+                    if (dir === 2) ny++;
+                    if (dir === 3) nx--;
+
+                    if (nx >= 0 && nx < width && ny >= 0 && ny < height && !maze[nx][ny].visited) {
+                        maze[x][y].walls[dir] = false;
+                        maze[nx][ny].walls[(dir + 2) % 4] = false;
+                        carve(nx, ny);
+                    }
+                }
+            }
+
+            carve(0, 0);
+            return { maze };
+        }
+
+        function buildMazeGeometry(maze) {
+            const loader = new THREE.TextureLoader();
+
+            const wallTextures = [
+                loader.load("/static/wall.jpg"),
+                loader.load("/static/girl.jpg"),
+                loader.load("/static/boy.jpeg")
+            ];
+
+            wallTextures.forEach(tex => {
+                tex.wrapS = THREE.RepeatWrapping;
+                tex.wrapT = THREE.RepeatWrapping;
+            });
+
+            const floorTex = loader.load("/static/floor.jpg");
+            floorTex.wrapS = THREE.RepeatWrapping;
+            floorTex.wrapT = THREE.RepeatWrapping;
+            floorTex.repeat.set(mazeSize, mazeSize);
+
+            const ceilTex = loader.load("/static/ceiling.jpg");
+            ceilTex.wrapS = THREE.RepeatWrapping;
+            ceilTex.wrapT = THREE.RepeatWrapping;
+            ceilTex.repeat.set(mazeSize, mazeSize);
+
+            const floor = new THREE.Mesh(
+                new THREE.PlaneGeometry(mazeSize * cellSize, mazeSize * cellSize),
+                new THREE.MeshBasicMaterial({ map: floorTex })
+            );
+            floor.rotation.x = -Math.PI / 2;
+            mazeScene.add(floor);
+
+            const ceiling = new THREE.Mesh(
+                new THREE.PlaneGeometry(mazeSize * cellSize, mazeSize * cellSize),
+                new THREE.MeshBasicMaterial({ map: ceilTex, side: THREE.DoubleSide })
+            );
+            ceiling.position.y = 3;
+            ceiling.rotation.x = Math.PI / 2;
+            mazeScene.add(ceiling);
+
+            for (let x = 0; x < mazeSize; x++) {
+                for (let y = 0; y < mazeSize; y++) {
+                    const cell = maze[x][y];
+                    const cx = (x - mazeSize / 2) * cellSize + cellSize / 2;
+                    const cz = (y - mazeSize / 2) * cellSize + cellSize / 2;
+                    const h = 3;
+                    const half = cellSize / 2;
+
+                    function randomMat() {
+                        return new THREE.MeshBasicMaterial({
+                            map: wallTextures[Math.floor(Math.random() * wallTextures.length)]
+                        });
+                    }
+
+                    if (cell.walls[0]) {
+                        const w = new THREE.Mesh(new THREE.BoxGeometry(cellSize, h, 0.2), randomMat());
+                        w.position.set(cx, h / 2, cz - half);
+                        mazeScene.add(w);
+                    }
+                    if (cell.walls[1]) {
+                        const w = new THREE.Mesh(new THREE.BoxGeometry(0.2, h, cellSize), randomMat());
+                        w.position.set(cx + half, h / 2, cz);
+                        mazeScene.add(w);
+                    }
+                    if (cell.walls[2]) {
+                        const w = new THREE.Mesh(new THREE.BoxGeometry(cellSize, h, 0.2), randomMat());
+                        w.position.set(cx, h / 2, cz + half);
+                        mazeScene.add(w);
+                    }
+                    if (cell.walls[3]) {
+                        const w = new THREE.Mesh(new THREE.BoxGeometry(0.2, h, cellSize), randomMat());
+                        w.position.set(cx - half, h / 2, cz);
+                        mazeScene.add(w);
+                    }
+                }
+            }
+
+            mazeCamera.position.set(
+                (0 - mazeSize / 2) * cellSize + cellSize / 2,
+                1.6,
+                (0 - mazeSize / 2) * cellSize + cellSize / 2
+            );
+        }
+
+        function animateMaze() {
+            requestAnimationFrame(animateMaze);
+
+            const delta = mazeClock.getDelta();
+            const moveSpeed = 4 * delta;
+
+            // Forward camera
+            const forward = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+            const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+
+            let moving = false;
+
+            if (autoMove) {
+                mazeCamera.position.addScaledVector(forward, moveSpeed * 0.7);
+            } else {
+                if (moveForward) { mazeCamera.position.addScaledVector(forward, moveSpeed); moving = true; }
+                if (moveBackward) { mazeCamera.position.addScaledVector(forward, -moveSpeed); moving = true; }
+                if (moveLeft) { mazeCamera.position.addScaledVector(right, -moveSpeed); moving = true; }
+                if (moveRight) { mazeCamera.position.addScaledVector(right, moveSpeed); moving = true; }
+            }
+
+            // Mouse look 
+            const look = forward.clone();
+            look.y = Math.sin(pitch);
+            const target = mazeCamera.position.clone().add(look);
+            mazeCamera.lookAt(target);
+
+            updateWalkingSound(moving);
+            mazeRenderer.render(mazeScene, mazeCamera);
+        }
+
+        function updateWalkingSound(moving) {
+            if (autoMove) {
+                walkAudioElem.pause();
+                walking = false;
+                return;
+            }
+
+            if (moving && !walking) {
+                walking = true;
+                walkAudioElem.currentTime = 0;
+                walkAudioElem.play();
+            }
+            if (!moving && walking) {
+                walking = false;
+                walkAudioElem.pause();
+            }
+        }
+
+        // Controls
+        function onKeyDown(e) {
+            moveForward |= (e.code === "KeyW");
+            moveBackward |= (e.code === "KeyS");
+            moveLeft |= (e.code === "KeyA");
+            moveRight |= (e.code === "KeyD");
+        }
+
+        function onKeyUp(e) {
+            if (e.code === "KeyW") moveForward = false;
+            if (e.code === "KeyS") moveBackward = false;
+            if (e.code === "KeyA") moveLeft = false;
+            if (e.code === "KeyD") moveRight = false;
+        }
+
+        function onMouseDown(e) {
+            autoMove = false;
+            mouseDown = true;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        }
+
+        function onMouseMove(e) {
+            if (!mouseDown) return;
+
+            const dx = e.clientX - lastMouseX;
+            const dy = e.clientY - lastMouseY;
+
+            const sens = 0.004;
+            yaw -= dx * sens;
+            pitch -= dy * sens;
+
+            const limit = Math.PI / 3;
+            pitch = Math.max(-limit, Math.min(limit, pitch));
+
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        }
+
+        window.addEventListener("load", initMaze);
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Nostalgia Stats</title>
+
+    <!-- Load external CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
+</head>
+
+<body>
+
+    <h1 class="title">Nostalgia Era Statistics</h1>
+    <p class="subtitle">Past Users Input Results</p>
+
+    <div class="stat-box">
+
+        <!-- 0–17 -->
+        <div class="stat-row">
+            <div class="label">0–17: {{ counts["0-17"] }}</div>
+            <div class="bar-container">
+                <div class="bar-fill bar-17" style="width: {{ (counts['0-17'] / total * 100) if total > 0 else 0 }}%;">
+                </div>
+            </div>
+        </div>
+
+        <!-- 18–30 -->
+        <div class="stat-row">
+            <div class="label">18–30: {{ counts["18-30"] }}</div>
+            <div class="bar-container">
+                <div class="bar-fill bar-30" style="width: {{ (counts['18-30'] / total * 100) if total > 0 else 0 }}%;">
+                </div>
+            </div>
+        </div>
+
+        <!-- 31–50 -->
+        <div class="stat-row">
+            <div class="label">31–50: {{ counts["31-50"] }}</div>
+            <div class="bar-container">
+                <div class="bar-fill bar-50" style="width: {{ (counts['31-50'] / total * 100) if total > 0 else 0 }}%;">
+                </div>
+            </div>
+        </div>
+
+        <!-- 51+ -->
+        <div class="stat-row">
+            <div class="label">51+: {{ counts["51+"] }}</div>
+            <div class="bar-container">
+                <div class="bar-fill bar-51" style="width: {{ (counts['51+'] / total * 100) if total > 0 else 0 }}%;">
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <p class="backLink">
+        <a href="/" class="link">Back to Home</a>
+    </p>
+
+</body>
+
+</html>

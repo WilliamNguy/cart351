@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Nostalgia Era: 51+ (Tunnel)</title>
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: black;
+        }
+
+        #tunnelCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #hud {
+            position: fixed;
+            top: 15px;
+            left: 20px;
+            color: white;
+            font-family: Arial, sans-serif;
+            z-index: 5;
+            text-shadow: 0 0 5px black;
+        }
+
+        #backBtn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 18px;
+            background: magenta;
+            color: black;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            text-decoration: none;
+            border-radius: 8px;
+            z-index: 9999;
+            box-shadow: 0 0 10px magenta;
+            transition: 0.2s;
+        }
+
+        #backBtn:hover {
+            background: #ff80ff;
+            box-shadow: 0 0 14px #ff80ff;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="hud">
+        <div><b>Nostalgia Era: 51+</b></div>
+        <div>Move mouse to rotate • Arrow keys to zoom • click to hear</div>
+    </div>
+    <a href="/" id="backBtn">← Home</a>
+    <canvas id="tunnelCanvas"></canvas>
+
+    <!-- sound-->
+    <audio id="nos4" src="/static/nos4.mp3" loop></audio>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+
+    <script>
+        let tunnelRenderer, tunnelScene, tunnelCamera, tunnelClock;
+        let tunnelMeshes = [];
+        let tunnelParticles;
+
+        let tunnelRadius = 20;
+        let tunnelMin = 5;
+        let tunnelMax = 50;
+
+        let dragging = false;
+        let lastX = 0, lastY = 0;
+
+        let yaw = 0;
+        let pitch = 0;
+
+        let introSpin = true;
+        let introLeft = Math.PI;
+
+        function initTunnel() {
+            const canvas = document.getElementById("tunnelCanvas");
+
+            tunnelRenderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+            resizeRenderer();
+
+            tunnelScene = new THREE.Scene();
+            tunnelScene.fog = new THREE.FogExp2(0x000000, 0.09);
+
+            tunnelCamera = new THREE.PerspectiveCamera(
+                60,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                200
+            );
+            tunnelClock = new THREE.Clock();
+
+
+            tunnelMeshes = [];
+            const mats = [
+                new THREE.MeshBasicMaterial({ color: 0x4206F1, wireframe: true }),
+                new THREE.MeshBasicMaterial({ color: 0xFE18D3, wireframe: true }),
+                new THREE.MeshBasicMaterial({ color: 0xFEFF38, wireframe: true }),
+                new THREE.MeshBasicMaterial({ color: 0x41A67E, wireframe: true })
+            ];
+
+            const geoms = [
+                new THREE.TorusGeometry(6, 1, 16, 80),
+                new THREE.TorusKnotGeometry(4, 0.8, 120, 16),
+                new THREE.TorusGeometry(8, 0.6, 24, 120),
+                new THREE.TorusGeometry(10, 0.3, 32, 160)
+            ];
+
+            for (let i = 0; i < geoms.length; i++) {
+                const m = new THREE.Mesh(geoms[i], mats[i]);
+                m.position.z = -8 * i;
+                tunnelMeshes.push(m);
+                tunnelScene.add(m);
+            }
+
+            // ---- particles ----
+            const pGeo = new THREE.BufferGeometry();
+            const count = 800;
+            const pos = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 12 + Math.random() * 8;
+                const z = (Math.random() - 0.5) * 50;
+                pos[i * 3] = Math.cos(angle) * radius;
+                pos[i * 3 + 1] = Math.sin(angle) * radius;
+                pos[i * 3 + 2] = z;
+            }
+            pGeo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+            tunnelParticles = new THREE.Points(
+                pGeo,
+                new THREE.PointsMaterial({ size: 0.12, color: 0xffffff })
+            );
+            tunnelScene.add(tunnelParticles);
+
+            // ---- sound ----
+            window.addEventListener("click", () => {
+                const audio = document.getElementById("nos4");
+                audio.volume = 0.6;
+                audio.play().catch(() => { });
+            }, { once: true });
+
+            // camera
+            window.addEventListener("mousedown", e => {
+                dragging = true;
+                lastX = e.clientX;
+                lastY = e.clientY;
+                introSpin = false;
+            });
+
+            window.addEventListener("mousemove", e => {
+                if (!dragging) return;
+                const dx = e.clientX - lastX;
+                const dy = e.clientY - lastY;
+
+                yaw -= dx * 0.004;
+                pitch -= dy * 0.004;
+
+                const limit = Math.PI / 3;
+                if (pitch > limit) pitch = limit;
+                if (pitch < -limit) pitch = -limit;
+
+                lastX = e.clientX;
+                lastY = e.clientY;
+            });
+
+            window.addEventListener("mouseup", () => dragging = false);
+
+            window.addEventListener("keydown", e => {
+                const speed = 1;
+                if (e.code === "ArrowUp") tunnelRadius -= speed;
+                if (e.code === "ArrowDown") tunnelRadius += speed;
+
+                tunnelRadius = Math.max(tunnelMin, Math.min(tunnelMax, tunnelRadius));
+            });
+
+            window.addEventListener("resize", resizeRenderer);
+
+            animateTunnel();
+        }
+
+        function animateTunnel() {
+            requestAnimationFrame(animateTunnel);
+            const dt = tunnelClock.getDelta();
+
+            tunnelMeshes.forEach((m, i) => {
+                m.rotation.x += 0.002 + i * 0.0005;
+                m.rotation.y += 0.003 + i * 0.0008;
+            });
+
+            if (tunnelParticles) {
+                tunnelParticles.rotation.z -= 0.0008;
+            }
+
+            if (introSpin && introLeft > 0) {
+                const step = (Math.PI / 2) * dt;
+                yaw += step;
+                introLeft -= step;
+                if (introLeft <= 0) introSpin = false;
+            }
+
+            const x = Math.sin(yaw) * tunnelRadius;
+            const z = Math.cos(yaw) * tunnelRadius;
+            const y = Math.sin(pitch) * 6;
+
+            tunnelCamera.position.set(x, y, z);
+            tunnelCamera.lookAt(0, 0, -10);
+
+            tunnelRenderer.render(tunnelScene, tunnelCamera);
+        }
+
+        function resizeRenderer() {
+            if (!tunnelRenderer || !tunnelCamera) return;
+            tunnelRenderer.setSize(window.innerWidth, window.innerHeight);
+            tunnelCamera.aspect = window.innerWidth / window.innerHeight;
+            tunnelCamera.updateProjectionMatrix();
+        }
+
+        window.addEventListener("load", initTunnel);
+    </script>
+
+</body>
+
+</html>
