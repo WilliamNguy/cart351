@@ -84,3 +84,22 @@ section:hover {
     background: rgba(0, 255, 65, 0.03);
     transition: 0.2s;
 }
+
+header,
+main,
+footer {
+    border: 1px solid #00ff41;
+    padding: 20px;
+    margin-bottom: 20px;
+    background: rgba(0, 255, 65, 0.03);
+}
+
+main section {
+    border-left: 2px solid #00ff41;
+    padding-left: 18px;
+    margin-top: 25px;
+}
+
+ul li {
+    margin: 8px 0;
+}
